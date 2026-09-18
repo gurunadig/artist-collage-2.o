@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
+import { StudioNav } from "@/components/StudioNav";
 
 export const metadata: Metadata = { title: "Studio" };
 
 export default function StudioLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <div className="mx-auto max-w-3xl px-6 py-12">
+      <StudioNav />
+      {children}
+    </div>
+  );
 }

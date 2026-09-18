@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import ArtistProfile, Discipline, Genre, Language, PortfolioItem, Report
+from .models import ArtistProfile, Discipline, Genre, Language, PortfolioItem, Report, Track
 
 
 @admin.register(Discipline)
@@ -81,3 +81,34 @@ class ReportAdmin(admin.ModelAdmin):
     list_display = ("artist", "reason", "status", "reporter", "created_at")
     list_filter = ("status",)
     search_fields = ("artist__stage_name", "reason")
+
+
+@admin.register(Track)
+class TrackAdmin(admin.ModelAdmin):
+    list_display = (
+        "title",
+        "artist",
+        "slug",
+        "price_inr",
+        "preview_seconds",
+        "is_published",
+        "has_mp3",
+        "created_at",
+    )
+    list_filter = ("is_published",)
+    search_fields = ("title", "slug", "artist__stage_name")
+    actions = ["publish", "unpublish"]
+    readonly_fields = ("slug",)
+
+    def has_mp3(self, obj):
+        return bool(obj.mp3)
+
+    has_mp3.boolean = True
+
+    @admin.action(description="Publish")
+    def publish(self, request, queryset):
+        queryset.update(is_published=True)
+
+    @admin.action(description="Unpublish")
+    def unpublish(self, request, queryset):
+        queryset.update(is_published=False)

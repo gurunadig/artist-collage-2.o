@@ -1,6 +1,6 @@
 # Artist Collage API
 
-Django + Django REST Framework backend for Artist Collage. Milestone 1 covers OTP auth, the artist directory, public profiles, and Django Admin.
+Django + Django REST Framework backend for Artist Collage. Milestone 2 covers OTP auth, the artist directory, public profiles, track uploads, and signed audio previews.
 
 Not a social network. Not a streaming service.
 
@@ -41,6 +41,10 @@ python manage.py runserver
 | GET | `/api/v1/artists/:slug` | no |
 | GET/PATCH | `/api/v1/me/profile` | yes |
 | POST | `/api/v1/me/profile/image` | yes |
+| GET/POST | `/api/v1/me/tracks` | yes |
+| PATCH/DELETE | `/api/v1/me/tracks/:id` | yes |
+| GET | `/api/v1/artists/:slug/tracks/:track` | no |
+| GET | `/api/v1/artists/:slug/tracks/:track/preview` | signed URL |
 
 Directory query params: `q`, `city`, `discipline`, `genre`, `language`, `availability` (`hire` \| `collab`), `verified`.
 

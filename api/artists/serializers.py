@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from .models import ArtistProfile, Discipline, Genre, Language, PortfolioItem
+from core.signing import sign_preview
+from .models import ArtistProfile, Discipline, Genre, Language, PortfolioItem, Track
 
 
 class NamedSlugSerializer(serializers.ModelSerializer):
@@ -67,6 +68,7 @@ class ArtistCardSerializer(serializers.ModelSerializer):
 
 class ArtistDetailSerializer(ArtistCardSerializer):
     portfolio_items = PortfolioItemSerializer(many=True, read_only=True)
+    tracks = serializers.SerializerMethodField()
 
     class Meta(ArtistCardSerializer.Meta):
         fields = ArtistCardSerializer.Meta.fields + (
@@ -74,7 +76,12 @@ class ArtistDetailSerializer(ArtistCardSerializer):
             "skills",
             "social_links",
             "portfolio_items",
+            "tracks",
         )
+
+    def get_tracks(self, obj):
+        qs = obj.tracks.filter(is_published=True)
+        return TrackCardSerializer(qs, many=True, context=self.context).data
 
 
 class ArtistProfileWriteSerializer(serializers.ModelSerializer):
@@ -163,3 +170,54 @@ class ArtistProfileWriteSerializer(serializers.ModelSerializer):
                 description=item.get("description", ""),
                 sort_order=item.get("sort_order", index),
             )
+
+
+class TrackCardSerializer(serializers.ModelSerializer):
+    artist_slug = serializers.CharField(source="artist.slug", read_only=True)
+    artist_name = serializers.CharField(source="artist.stage_name", read_only=True)
+    artwork_url = serializers.SerializerMethodField()
+    preview_url = serializers.SerializerMethodField()
+    has_mp3 = serializers.SerializerMethodField()
+    has_wav = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Track
+        fields = (
+            "id",
+            "slug",
+            "title",
+            "artist_slug",
+            "artist_name",
+            "artwork_url",
+            "preview_url",
+            "preview_seconds",
+            "price_inr",
+            "is_published",
+            "has_mp3",
+            "has_wav",
+            "created_at",
+        )
+        read_only_fields = fields
+
+    def get_artwork_url(self, obj):
+        if not obj.artwork:
+            return None
+        request = self.context.get("request")
+        url = obj.artwork.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_has_mp3(self, obj):
+        return bool(obj.mp3)
+
+    def get_has_wav(self, obj):
+        return bool(obj.wav)
+
+    def get_preview_url(self, obj):
+        if not obj.mp3:
+            return None
+        request = self.context.get("request")
+        expires, signature = sign_preview(str(obj.id))
+        path = f"/api/v1/artists/{obj.artist.slug}/tracks/{obj.slug}/preview?expires={expires}&sig={signature}"
+        if request:
+            return request.build_absolute_uri(path)
+        return path

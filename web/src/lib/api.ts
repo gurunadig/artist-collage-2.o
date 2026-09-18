@@ -1,4 +1,4 @@
-import type { Artist, Lookups, Paginated, User } from "./types";
+import type { Artist, Lookups, Paginated, Track, User } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -90,4 +90,13 @@ export const api = {
     form.append("image", file);
     return request<Artist>("/api/v1/me/profile/image", { method: "POST", body: form }, true);
   },
+  track: (artistSlug: string, trackSlug: string) =>
+    request<Track>(`/api/v1/artists/${artistSlug}/tracks/${trackSlug}`),
+  myTracks: () => request<{ count: number; results: Track[] }>("/api/v1/me/tracks", {}, true),
+  createTrack: (form: FormData) =>
+    request<Track>("/api/v1/me/tracks", { method: "POST", body: form }, true),
+  updateTrack: (id: string, form: FormData) =>
+    request<Track>(`/api/v1/me/tracks/${id}`, { method: "PATCH", body: form }, true),
+  deleteTrack: (id: string) =>
+    request<null>(`/api/v1/me/tracks/${id}`, { method: "DELETE" }, true),
 };

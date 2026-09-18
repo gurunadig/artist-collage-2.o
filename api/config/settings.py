@@ -129,7 +129,8 @@ CORS_ALLOWED_ORIGINS = [
     for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
     if origin.strip()
 ]
-CORS_ALLOW_HEADERS = ["authorization", "content-type", "accept"]
+CORS_ALLOW_HEADERS = ["authorization", "content-type", "accept", "range"]
+CORS_EXPOSE_HEADERS = ["content-length", "content-type", "accept-ranges", "x-preview-seconds"]
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -164,6 +165,9 @@ OTP_TTL_SECONDS = int(os.getenv("OTP_TTL_SECONDS", "300"))
 OTP_MAX_ATTEMPTS = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
 
 STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "local")
+PREVIEW_URL_TTL = int(os.getenv("PREVIEW_URL_TTL", "180"))
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 
 LOGGING = {
     "version": 1,

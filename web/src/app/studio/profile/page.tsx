@@ -126,8 +126,8 @@ export default function StudioProfilePage() {
   if (!ready || !user) return null;
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
-      <h1 className="font-serif text-4xl">Studio</h1>
+    <div>
+      <h1 className="font-serif text-4xl">Profile</h1>
       <p className="mt-2 text-muted">This is the identity people find in the directory.</p>
       <form onSubmit={onSubmit} className="mt-8 space-y-5">
         <Field label="Stage name">

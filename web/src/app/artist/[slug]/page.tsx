@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatRate } from "@/components/ArtistCard";
 import { api } from "@/lib/api";
@@ -79,6 +80,26 @@ export default async function ArtistPage({ params }: Props) {
             />
             {rate && <Info label="Starting rate" value={rate} />}
           </dl>
+          {!!artist.tracks?.length && (
+            <div>
+              <h2 className="font-serif text-2xl">Music</h2>
+              <ul className="mt-4 space-y-3">
+                {artist.tracks.map((track) => (
+                  <li key={track.id}>
+                    <Link
+                      href={`/artist/${artist.slug}/${track.slug}`}
+                      className="flex items-center justify-between rounded-2xl border border-line px-4 py-3 hover:border-gold/40"
+                    >
+                      <span className="font-serif text-xl">{track.title}</span>
+                      <span className="text-sm text-muted">
+                        ₹{track.price_inr.toLocaleString("en-IN")}+ · {track.preview_seconds}s preview
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {!!artist.portfolio_items?.length && (
             <div>
               <h2 className="font-serif text-2xl">Portfolio</h2>

@@ -1,8 +1,16 @@
 import uuid
 
 from django.conf import settings
+from django.core.files.storage import FileSystemStorage
 from django.db import models
 from django.utils.text import slugify
+
+
+def protected_storage():
+    return FileSystemStorage(
+        location=str(settings.MEDIA_ROOT / "protected"),
+        base_url="/protected-unavailable/",
+    )
 
 
 class Discipline(models.Model):
@@ -147,11 +155,50 @@ class Report(models.Model):
         return f"{self.reason} — {self.artist}"
 
 
-def unique_slug(name: str, model, pk=None) -> str:
-    base = slugify(name) or "artist"
+class Track(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    artist = models.ForeignKey(
+        ArtistProfile,
+        on_delete=models.CASCADE,
+        related_name="tracks",
+    )
+    title = models.CharField(max_length=160)
+    slug = models.SlugField(max_length=180)
+    artwork = models.ImageField(upload_to="tracks/artwork/", blank=True, null=True)
+    mp3 = models.FileField(upload_to="tracks/", storage=protected_storage, blank=True)
+    wav = models.FileField(upload_to="tracks/", storage=protected_storage, blank=True)
+    preview_seconds = models.PositiveSmallIntegerField(default=30)
+    price_inr = models.PositiveIntegerField(default=50)
+    is_published = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["artist", "slug"], name="unique_artist_track_slug"),
+        ]
+
+    def __str__(self):
+        return f"{self.title} — {self.artist.stage_name}"
+
+    def save(self, *args, **kwargs):
+        if not self.slug and self.title:
+            self.slug = unique_slug(self.title, Track, self.pk, extra={"artist": self.artist_id})
+        if self.preview_seconds < 10:
+            self.preview_seconds = 10
+        if self.preview_seconds > 90:
+            self.preview_seconds = 90
+        super().save(*args, **kwargs)
+
+
+def unique_slug(name: str, model, pk=None, extra=None) -> str:
+    base = slugify(name) or "item"
     slug = base
     n = 2
     qs = model.objects.all()
+    if extra:
+        qs = qs.filter(**extra)
     while qs.filter(slug=slug).exclude(pk=pk).exists():
         slug = f"{base}-{n}"
         n += 1

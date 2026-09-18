@@ -21,4 +21,11 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(
+        settings.MEDIA_URL + "artists/",
+        document_root=settings.MEDIA_ROOT / "artists",
+    )
+    urlpatterns += static(
+        settings.MEDIA_URL + "tracks/artwork/",
+        document_root=settings.MEDIA_ROOT / "tracks" / "artwork",
+    )

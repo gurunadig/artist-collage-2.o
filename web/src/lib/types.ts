@@ -15,6 +15,22 @@ export type PortfolioItem = {
   sort_order?: number;
 };
 
+export type Track = {
+  id: string;
+  slug: string;
+  title: string;
+  artist_slug: string;
+  artist_name: string;
+  artwork_url: string | null;
+  preview_url: string | null;
+  preview_seconds: number;
+  price_inr: number;
+  is_published: boolean;
+  has_mp3: boolean;
+  has_wav: boolean;
+  created_at: string;
+};
+
 export type Artist = {
   slug: string;
   stage_name: string;
@@ -34,6 +50,7 @@ export type Artist = {
   skills?: string[];
   social_links?: Record<string, string>;
   portfolio_items?: PortfolioItem[];
+  tracks?: Track[];
 };
 
 export type User = {
