@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0c0b0a;
+  --foreground: #f3ece1;
+  --muted: #b3a898;
+  --line: rgba(243, 236, 225, 0.12);
+  --gold: #c4a574;
+  --panel: #161412;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-gold: var(--gold);
+  --color-panel: var(--panel);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+}
+
+html,
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+body {
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+::selection {
+  background: var(--gold);
+  color: var(--background);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.field-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 0.75rem 1rem;
+  outline: none;
+}
+
+.field-input:focus {
+  border-color: var(--gold);
+}
