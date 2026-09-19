@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "django_filters",
     "accounts",
     "artists",
+    "payments",
 ]
 
 MIDDLEWARE = [
@@ -130,7 +131,13 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 CORS_ALLOW_HEADERS = ["authorization", "content-type", "accept", "range"]
-CORS_EXPOSE_HEADERS = ["content-length", "content-type", "accept-ranges", "x-preview-seconds"]
+CORS_EXPOSE_HEADERS = [
+    "content-length",
+    "content-type",
+    "accept-ranges",
+    "x-preview-seconds",
+    "x-preview-start",
+]
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -146,6 +153,7 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 12,
+    "URL_FORMAT_OVERRIDE": None,
     "DEFAULT_THROTTLE_RATES": {
         "otp_request": "8/hour",
         "otp_verify": "20/hour",
@@ -166,8 +174,14 @@ OTP_MAX_ATTEMPTS = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
 
 STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "local")
 PREVIEW_URL_TTL = int(os.getenv("PREVIEW_URL_TTL", "180"))
+DOWNLOAD_URL_TTL = int(os.getenv("DOWNLOAD_URL_TTL", "180"))
 DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+PAYMENT_PROVIDER = os.getenv("PAYMENT_PROVIDER", "dev")
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
+PLATFORM_FEE_PERCENT = int(os.getenv("PLATFORM_FEE_PERCENT", "10"))
 
 LOGGING = {
     "version": 1,

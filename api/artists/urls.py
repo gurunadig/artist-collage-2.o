@@ -9,6 +9,7 @@ from .views import (
     MeTrackDetailView,
     MeTrackListCreateView,
     PublicTrackDetailView,
+    TrackDownloadView,
     TrackPreviewView,
 )
 
@@ -16,6 +17,7 @@ urlpatterns = [
     path("lookups", LookupView.as_view()),
     path("artists", ArtistDirectoryView.as_view()),
     path("artists/<slug:slug>/tracks/<slug:track_slug>/preview", TrackPreviewView.as_view()),
+    path("artists/<slug:slug>/tracks/<slug:track_slug>/download", TrackDownloadView.as_view()),
     path("artists/<slug:slug>/tracks/<slug:track_slug>", PublicTrackDetailView.as_view()),
     path("artists/<slug:slug>", ArtistDetailView.as_view()),
     path("me/profile/image", MeProfileImageView.as_view()),

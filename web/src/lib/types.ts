@@ -24,10 +24,46 @@ export type Track = {
   artwork_url: string | null;
   preview_url: string | null;
   preview_seconds: number;
+  preview_start_seconds?: number;
+  duration_seconds?: number | null;
+  has_preview_audio?: boolean;
   price_inr: number;
   is_published: boolean;
   has_mp3: boolean;
   has_wav: boolean;
+  owned?: boolean;
+  stream_url?: string | null;
+  download_mp3_url?: string | null;
+  download_wav_url?: string | null;
+  created_at: string;
+};
+
+export type CheckoutOrder = {
+  id: string;
+  status: string;
+  provider: string;
+  amount_inr: number;
+  platform_fee_inr: number;
+  artist_earnings_inr: number;
+  razorpay_order_id: string;
+  key_id: string;
+  amount_paise: number;
+  mock: boolean;
+  track_title: string;
+  track_slug: string;
+  artist_slug: string;
+  artist_name: string;
+};
+
+export type Sale = {
+  id: string;
+  status: string;
+  amount_inr: number;
+  platform_fee_inr: number;
+  artist_earnings_inr: number;
+  track_title: string;
+  track_slug: string;
+  artist_slug: string;
   created_at: string;
 };
 

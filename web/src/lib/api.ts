@@ -1,4 +1,4 @@
-import type { Artist, Lookups, Paginated, Track, User } from "./types";
+import type { Artist, CheckoutOrder, Lookups, Paginated, Sale, Track, User } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -31,7 +31,7 @@ async function request<T>(path: string, init: RequestInit = {}, auth = false): P
   if (!(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  if (auth) {
+  if (auth || true) {
     const token = getToken();
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
@@ -41,14 +41,24 @@ async function request<T>(path: string, init: RequestInit = {}, auth = false): P
     cache: "no-store",
   });
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+  }
   if (!res.ok) {
+    const record = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
     const detail =
-      data?.detail ||
-      data?.stage_name?.[0] ||
-      (typeof data === "object" && data
-        ? Object.values(data).flat().join(" ")
-        : "Request failed");
+      (typeof record?.detail === "string" && record.detail) ||
+      (Array.isArray(record?.slug) && String(record.slug[0])) ||
+      (Array.isArray(record?.stage_name) && String(record.stage_name[0])) ||
+      (record ? Object.values(record).flat().join(" ") : "") ||
+      (res.status === 409
+        ? "This track cannot be deleted."
+        : res.statusText || "Request failed");
     throw new ApiError(String(detail), res.status);
   }
   return data as T;
@@ -99,4 +109,29 @@ export const api = {
     request<Track>(`/api/v1/me/tracks/${id}`, { method: "PATCH", body: form }, true),
   deleteTrack: (id: string) =>
     request<null>(`/api/v1/me/tracks/${id}`, { method: "DELETE" }, true),
+  createOrder: (artistSlug: string, trackSlug: string) =>
+    request<CheckoutOrder>(
+      "/api/v1/orders",
+      { method: "POST", body: JSON.stringify({ artist_slug: artistSlug, track_slug: trackSlug }) },
+      true,
+    ),
+  verifyOrder: (
+    orderId: string,
+    payload: {
+      razorpay_payment_id?: string;
+      razorpay_order_id?: string;
+      razorpay_signature?: string;
+    } = {},
+  ) =>
+    request<CheckoutOrder>(`/api/v1/orders/${orderId}/verify`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }, true),
+  library: () => request<{ count: number; results: Track[] }>("/api/v1/me/library", {}, true),
+  sales: () =>
+    request<{ total_earnings_inr: number; count: number; results: Sale[] }>(
+      "/api/v1/me/sales",
+      {},
+      true,
+    ),
 };

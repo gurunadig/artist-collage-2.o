@@ -1,4 +1,6 @@
+from django.db import IntegrityError
 from django.db.models import Q
+from django.db.models.deletion import ProtectedError
 from django.http import FileResponse, Http404
 from rest_framework import filters, generics, permissions, status
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -7,9 +9,9 @@ from rest_framework.views import APIView
 
 from accounts.models import User
 from accounts.throttles import SearchThrottle
-from core.signing import verify_preview
+from core.signing import verify_download, verify_preview
 
-from .models import ArtistProfile, Discipline, Genre, Language, Track
+from .models import ArtistProfile, Discipline, Genre, Language, Track, clamp_preview_window
 from .serializers import (
     ArtistCardSerializer,
     ArtistDetailSerializer,
@@ -127,10 +129,16 @@ class MeProfileView(APIView):
         profile = getattr(request.user, "artist_profile", None)
         serializer = ArtistProfileWriteSerializer(instance=profile, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        if profile is None:
-            profile = serializer.save(user=request.user)
-        else:
-            profile = serializer.save()
+        try:
+            if profile is None:
+                profile = serializer.save(user=request.user)
+            else:
+                profile = serializer.save()
+        except IntegrityError:
+            return Response(
+                {"slug": ["That public URL is already taken."], "detail": "That public URL is already taken."},
+                status=400,
+            )
         if request.user.role == User.Role.FAN:
             request.user.role = User.Role.ARTIST
             request.user.save(update_fields=["role"])
@@ -177,6 +185,31 @@ def _validate_upload(file_obj, allowed_types, label):
     raise ValueError(f"{label} must be a valid {label.upper()} file.")
 
 
+def _parse_float(value, default=None):
+    if value in (None, ""):
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _apply_preview_window(track, data, files=None):
+    duration = _parse_float(data.get("duration_seconds"), track.duration_seconds)
+    start = _parse_float(data.get("preview_start_seconds"), track.preview_start_seconds)
+    if duration is not None:
+        track.duration_seconds = duration
+    start, window = clamp_preview_window(track.duration_seconds, start)
+    track.preview_start_seconds = start
+    track.preview_seconds = window
+    files = files or {}
+    preview = files.get("preview_audio")
+    if preview:
+        _validate_upload(preview, WAV_TYPES, "wav")
+        track.preview_audio = preview
+    return track
+
+
 class PublicTrackDetailView(APIView):
     def get(self, request, slug, track_slug):
         track = (
@@ -201,7 +234,7 @@ class TrackPreviewView(APIView):
             .filter(artist__slug=slug, slug=track_slug)
             .first()
         )
-        if not track or not track.mp3:
+        if not track or not (track.preview_audio or track.mp3):
             raise Http404("No preview.")
 
         owner = (
@@ -218,11 +251,67 @@ class TrackPreviewView(APIView):
             ):
                 return Response({"detail": "Preview link expired. Refresh the page."}, status=403)
 
-        handle = track.mp3.open("rb")
-        response = FileResponse(handle, content_type="audio/mpeg")
+        clip = bool(track.preview_audio)
+        audio = track.preview_audio if clip else track.mp3
+        handle = audio.open("rb")
+        content_type = "audio/wav" if clip else "audio/mpeg"
+        response = FileResponse(handle, content_type=content_type)
         response["Content-Disposition"] = "inline"
         response["Cache-Control"] = "private, max-age=60"
         response["X-Preview-Seconds"] = str(track.preview_seconds)
+        response["X-Preview-Start"] = "0" if clip else str(track.preview_start_seconds)
+        return response
+
+
+class TrackDownloadView(APIView):
+    def get(self, request, slug, track_slug):
+        track = (
+            Track.objects.select_related("artist", "artist__user")
+            .filter(artist__slug=slug, slug=track_slug)
+            .first()
+        )
+        fmt = (request.query_params.get("kind") or request.query_params.get("format") or "mp3").lower()
+        if fmt not in ("mp3", "wav"):
+            return Response({"detail": "Format must be mp3 or wav."}, status=400)
+        audio = track.mp3 if track and fmt == "mp3" else track.wav if track else None
+        if not track or not audio:
+            raise Http404("File not found.")
+
+        user_id = request.query_params.get("uid") or (
+            str(request.user.id) if request.user.is_authenticated else ""
+        )
+        from payments.models import Entitlement
+        from payments.services import user_owns_track
+
+        entitled = False
+        if request.user.is_authenticated and user_owns_track(request.user, track):
+            entitled = True
+        elif user_id and Entitlement.objects.filter(user_id=user_id, track=track).exists():
+            entitled = True
+        elif user_id and str(track.artist.user_id) == str(user_id):
+            entitled = True
+
+        if not entitled:
+            return Response({"detail": "Purchase this track to download it."}, status=403)
+        if not verify_download(
+            str(track.id),
+            user_id,
+            fmt,
+            request.query_params.get("expires"),
+            request.query_params.get("sig"),
+        ):
+            if not (request.user.is_authenticated and user_owns_track(request.user, track)):
+                return Response({"detail": "Download link expired. Refresh the page."}, status=403)
+
+        handle = audio.open("rb")
+        content_type = "audio/mpeg" if fmt == "mp3" else "audio/wav"
+        filename = f"{track.slug}.{fmt}"
+        response = FileResponse(handle, content_type=content_type)
+        if request.query_params.get("inline"):
+            response["Content-Disposition"] = "inline"
+        else:
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        response["Cache-Control"] = "private, max-age=60"
         return response
 
 
@@ -268,7 +357,6 @@ class MeTrackListCreateView(APIView):
         track = Track(
             artist=profile,
             title=title,
-            preview_seconds=int(request.data.get("preview_seconds") or 30),
             price_inr=int(request.data.get("price_inr") or 50),
             is_published=str(request.data.get("is_published", "true")).lower()
             in ("1", "true", "yes", "on"),
@@ -278,6 +366,10 @@ class MeTrackListCreateView(APIView):
             track.wav = request.FILES["wav"]
         if request.FILES.get("artwork"):
             track.artwork = request.FILES["artwork"]
+        try:
+            _apply_preview_window(track, request.data, request.FILES)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=400)
         if request.user.role == User.Role.FAN:
             request.user.role = User.Role.ARTIST
             request.user.save(update_fields=["role"])
@@ -304,8 +396,6 @@ class MeTrackDetailView(APIView):
             return Response({"detail": "Track not found."}, status=404)
         if "title" in request.data and str(request.data.get("title")).strip():
             track.title = str(request.data.get("title")).strip()
-        if "preview_seconds" in request.data:
-            track.preview_seconds = int(request.data.get("preview_seconds") or track.preview_seconds)
         if "price_inr" in request.data:
             track.price_inr = int(request.data.get("price_inr") or track.price_inr)
         if "is_published" in request.data:
@@ -327,6 +417,7 @@ class MeTrackDetailView(APIView):
                 if not (getattr(artwork, "content_type", "") or "").startswith(IMAGE_PREFIX):
                     raise ValueError("Artwork must be an image.")
                 track.artwork = artwork
+            _apply_preview_window(track, request.data, request.FILES)
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=400)
         track.save()
@@ -336,5 +427,23 @@ class MeTrackDetailView(APIView):
         track = self._get(request, track_id)
         if not track:
             return Response({"detail": "Track not found."}, status=404)
-        track.delete()
+        if track.orders.exists():
+            if track.is_published:
+                track.is_published = False
+                track.save(update_fields=["is_published"])
+            return Response(
+                {
+                    "detail": "This track has been purchased, so it cannot be deleted. It is hidden from your public profile."
+                },
+                status=409,
+            )
+        try:
+            track.delete()
+        except ProtectedError:
+            return Response(
+                {
+                    "detail": "This track has been purchased, so it cannot be deleted. Hide it instead."
+                },
+                status=409,
+            )
         return Response(status=204)

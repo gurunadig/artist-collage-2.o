@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function SiteHeader() {
   const { user, logout, ready } = useAuth();
@@ -18,7 +19,10 @@ export function SiteHeader() {
           </Link>
           {ready && user ? (
             <>
-              <Link href="/studio/profile" className="hover:text-foreground">
+              <Link href="/library" className="hover:text-foreground">
+                Library
+              </Link>
+              <Link href="/studio" className="hover:text-foreground">
                 Studio
               </Link>
               <button type="button" onClick={logout} className="hover:text-foreground">
@@ -32,12 +36,13 @@ export function SiteHeader() {
               </Link>
               <Link
                 href="/signup"
-                className="rounded-full border border-gold px-4 py-1.5 text-gold hover:bg-gold hover:text-background"
+                className="rounded-full border border-gold px-4 py-1.5 text-gold hover:bg-gold hover:text-on-gold"
               >
                 Create profile
               </Link>
             </>
           )}
+          <ThemeToggle />
         </nav>
       </div>
     </header>

@@ -115,7 +115,7 @@ export default function DirectoryPage() {
       <p className="mt-6 text-sm text-muted">
         {loading ? "Searching…" : `${count} artist${count === 1 ? "" : "s"}`}
       </p>
-      {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+      {error && <p className="mt-4 text-sm text-danger">{error}</p>}
       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {artists.map((artist) => (
           <ArtistCard key={artist.slug} artist={artist} />

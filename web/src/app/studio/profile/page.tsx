@@ -142,7 +142,7 @@ export default function StudioProfilePage() {
           <input
             value={form.slug}
             onChange={(e) => setForm({ ...form, slug: e.target.value })}
-            placeholder="guru-nadig"
+            placeholder="your-name"
             className="field-input"
           />
         </Field>
@@ -254,13 +254,13 @@ export default function StudioProfilePage() {
         <Field label="Profile image">
           <input type="file" accept="image/*" onChange={(e) => onImage(e.target.files?.[0])} />
         </Field>
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
         {status && <p className="text-sm text-gold">{status}</p>}
         <div className="flex flex-wrap items-center gap-4">
           <button
             type="submit"
             disabled={busy}
-            className="rounded-full bg-gold px-6 py-3 text-sm font-medium text-background"
+            className="rounded-full bg-gold px-6 py-3 text-sm font-medium text-on-gold"
           >
             {busy ? "Saving…" : "Save profile"}
           </button>

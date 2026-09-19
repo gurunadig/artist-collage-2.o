@@ -43,7 +43,7 @@ export default async function ArtistPage({ params }: Props) {
   return (
     <div className="mx-auto max-w-4xl px-6 py-12">
       <div className="overflow-hidden rounded-3xl border border-line bg-panel">
-        <div className="aspect-[16/7] bg-[#1e1b18]">
+        <div className="aspect-[16/7] bg-well">
           {artist.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={artist.image_url} alt={artist.stage_name} className="h-full w-full object-cover" />

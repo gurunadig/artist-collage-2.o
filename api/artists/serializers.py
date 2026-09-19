@@ -1,7 +1,8 @@
+from django.utils.text import slugify
 from rest_framework import serializers
 
-from core.signing import sign_preview
-from .models import ArtistProfile, Discipline, Genre, Language, PortfolioItem, Track
+from core.signing import sign_download, sign_preview
+from .models import ArtistProfile, Discipline, Genre, Language, PortfolioItem, Track, unique_slug
 
 
 class NamedSlugSerializer(serializers.ModelSerializer):
@@ -131,10 +132,23 @@ class ArtistProfileWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"stage_name": "A stage name is required."})
         return attrs
 
+    def validate_slug(self, value):
+        value = slugify((value or "").strip())
+        if not value:
+            return ""
+        qs = ArtistProfile.objects.filter(slug=value)
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("That public URL is already taken.")
+        return value
+
     def create(self, validated_data):
         portfolio = validated_data.pop("portfolio_items", [])
         genres = validated_data.pop("genres", [])
         languages = validated_data.pop("languages", [])
+        if not validated_data.get("slug") and validated_data.get("stage_name"):
+            validated_data["slug"] = unique_slug(validated_data["stage_name"], ArtistProfile)
         profile = ArtistProfile.objects.create(**validated_data)
         profile.genres.set(genres)
         profile.languages.set(languages)
@@ -179,6 +193,11 @@ class TrackCardSerializer(serializers.ModelSerializer):
     preview_url = serializers.SerializerMethodField()
     has_mp3 = serializers.SerializerMethodField()
     has_wav = serializers.SerializerMethodField()
+    has_preview_audio = serializers.SerializerMethodField()
+    owned = serializers.SerializerMethodField()
+    stream_url = serializers.SerializerMethodField()
+    download_mp3_url = serializers.SerializerMethodField()
+    download_wav_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Track
@@ -191,10 +210,17 @@ class TrackCardSerializer(serializers.ModelSerializer):
             "artwork_url",
             "preview_url",
             "preview_seconds",
+            "preview_start_seconds",
+            "duration_seconds",
+            "has_preview_audio",
             "price_inr",
             "is_published",
             "has_mp3",
             "has_wav",
+            "owned",
+            "stream_url",
+            "download_mp3_url",
+            "download_wav_url",
             "created_at",
         )
         read_only_fields = fields
@@ -212,8 +238,11 @@ class TrackCardSerializer(serializers.ModelSerializer):
     def get_has_wav(self, obj):
         return bool(obj.wav)
 
+    def get_has_preview_audio(self, obj):
+        return bool(obj.preview_audio)
+
     def get_preview_url(self, obj):
-        if not obj.mp3:
+        if not obj.mp3 and not obj.preview_audio:
             return None
         request = self.context.get("request")
         expires, signature = sign_preview(str(obj.id))
@@ -221,3 +250,43 @@ class TrackCardSerializer(serializers.ModelSerializer):
         if request:
             return request.build_absolute_uri(path)
         return path
+
+    def _owned(self, obj) -> bool:
+        from payments.services import user_owns_track
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        return user_owns_track(user, obj)
+
+    def get_owned(self, obj):
+        return self._owned(obj)
+
+    def _signed_file(self, obj, fmt: str):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not self._owned(obj):
+            return None
+        if fmt == "mp3" and not obj.mp3:
+            return None
+        if fmt == "wav" and not obj.wav:
+            return None
+        expires, signature = sign_download(str(obj.id), str(user.id), fmt)
+        path = (
+            f"/api/v1/artists/{obj.artist.slug}/tracks/{obj.slug}/download"
+            f"?kind={fmt}&expires={expires}&sig={signature}&uid={user.id}"
+        )
+        if request:
+            return request.build_absolute_uri(path)
+        return path
+
+    def get_stream_url(self, obj):
+        url = self._signed_file(obj, "mp3")
+        if url:
+            return f"{url}&inline=1"
+        return None
+
+    def get_download_mp3_url(self, obj):
+        return self._signed_file(obj, "mp3")
+
+    def get_download_wav_url(self, obj):
+        return self._signed_file(obj, "wav")

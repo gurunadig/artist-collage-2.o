@@ -5,6 +5,20 @@ from django.core.files.storage import FileSystemStorage
 from django.db import models
 from django.utils.text import slugify
 
+PREVIEW_WINDOW_SECONDS = 30
+
+
+def clamp_preview_window(duration_seconds, start_seconds, window=PREVIEW_WINDOW_SECONDS):
+    duration = float(duration_seconds or 0)
+    start = float(start_seconds or 0)
+    if duration <= 0:
+        return max(0.0, start), window
+    window_len = min(window, duration)
+    window_int = max(1, min(window, int(round(window_len))))
+    max_start = max(0.0, duration - window_int)
+    start = min(max(0.0, start), max_start)
+    return start, window_int
+
 
 def protected_storage():
     return FileSystemStorage(
@@ -167,7 +181,15 @@ class Track(models.Model):
     artwork = models.ImageField(upload_to="tracks/artwork/", blank=True, null=True)
     mp3 = models.FileField(upload_to="tracks/", storage=protected_storage, blank=True)
     wav = models.FileField(upload_to="tracks/", storage=protected_storage, blank=True)
-    preview_seconds = models.PositiveSmallIntegerField(default=30)
+    preview_audio = models.FileField(
+        upload_to="tracks/previews/",
+        storage=protected_storage,
+        blank=True,
+        null=True,
+    )
+    duration_seconds = models.FloatField(null=True, blank=True)
+    preview_start_seconds = models.FloatField(default=0)
+    preview_seconds = models.PositiveSmallIntegerField(default=PREVIEW_WINDOW_SECONDS)
     price_inr = models.PositiveIntegerField(default=50)
     is_published = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -185,10 +207,10 @@ class Track(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug and self.title:
             self.slug = unique_slug(self.title, Track, self.pk, extra={"artist": self.artist_id})
-        if self.preview_seconds < 10:
-            self.preview_seconds = 10
-        if self.preview_seconds > 90:
-            self.preview_seconds = 90
+        self.preview_start_seconds, self.preview_seconds = clamp_preview_window(
+            self.duration_seconds,
+            self.preview_start_seconds,
+        )
         super().save(*args, **kwargs)
 
 

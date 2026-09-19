@@ -13,7 +13,7 @@ export function ArtistCard({ artist }: { artist: Artist }) {
       href={`/artist/${artist.slug}`}
       className="group overflow-hidden rounded-2xl border border-line bg-panel transition hover:border-gold/40"
     >
-      <div className="aspect-[4/3] bg-[#1e1b18]">
+      <div className="aspect-[4/3] bg-well">
         {artist.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={artist.image_url} alt={artist.stage_name} className="h-full w-full object-cover" />

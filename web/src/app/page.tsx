@@ -15,7 +15,7 @@ export default function HomePage() {
         <div className="mt-10 flex flex-wrap gap-4">
           <Link
             href="/artists"
-            className="rounded-full bg-gold px-6 py-3 text-sm font-medium text-background"
+            className="rounded-full bg-gold px-6 py-3 text-sm font-medium text-on-gold"
           >
             Browse the directory
           </Link>

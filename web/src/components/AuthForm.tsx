@@ -56,7 +56,8 @@ export function AuthForm({ purpose, title, subtitle, altHref, altLabel }: Props)
           : { phone, purpose, code };
       const result = await api.verifyOtp(payload);
       login(result.access, result.refresh, result.user);
-      router.push("/studio/profile");
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.push(next && next.startsWith("/") ? next : "/studio");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not verify code.");
     } finally {
@@ -75,7 +76,7 @@ export function AuthForm({ purpose, title, subtitle, altHref, altLabel }: Props)
             type="button"
             onClick={() => setChannel(item)}
             className={`rounded-full px-4 py-1.5 capitalize ${
-              channel === item ? "bg-gold text-background" : "border border-line"
+              channel === item ? "bg-gold text-on-gold" : "border border-line"
             }`}
           >
             {item}
@@ -108,11 +109,11 @@ export function AuthForm({ purpose, title, subtitle, altHref, altLabel }: Props)
           />
         )}
         {hint && <p className="text-sm text-gold">{hint}</p>}
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-full bg-gold py-3 text-sm font-medium text-background disabled:opacity-60"
+          className="w-full rounded-full bg-gold py-3 text-sm font-medium text-on-gold disabled:opacity-60"
         >
           {busy ? "Please wait…" : sent ? "Verify and continue" : "Send code"}
         </button>

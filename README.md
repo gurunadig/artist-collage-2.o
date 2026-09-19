@@ -2,7 +2,7 @@
 
 The professional home for independent artists.
 
-This repository contains Milestone 1: directory, profiles, and OTP auth.
+This repository contains the directory, profiles, OTP auth, track previews, and music checkout.
 
 ```
 api/   Django + DRF + PostgreSQL
